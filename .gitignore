@@ -1,0 +1,13 @@
+/target
+Cargo.lock.bak
+logs/
+*.log
+*.cache
+*.idx
+diagnostic-report-*.zip
+installer/output/
+*.pdb
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.dmp

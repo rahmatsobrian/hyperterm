@@ -1,0 +1,198 @@
+name: Build
+
+# WAJIB per spec: push, pull_request, workflow_dispatch triggers; debug +
+# release builds; dependency caching; artifact upload; full logging.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+    inputs:
+      build_installer:
+        description: "Build the Windows installer (.exe) in this run"
+        type: boolean
+        default: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Verbose cargo output -> full logging in the Actions log, per spec.
+  RUST_LOG: debug
+  RUST_BACKTRACE: full
+
+jobs:
+  # ---------------------------------------------------------------------
+  # DEBUG + RELEASE BUILD, both target architectures (x86 & x64), both
+  # sides of the Win7 SP1 -> Win11 matrix (MSVC toolchain, since it's what
+  # produces the smallest, most compatible binaries without needing a
+  # separate MinGW sysroot).
+  # ---------------------------------------------------------------------
+  build:
+    name: Build (${{ matrix.profile }}, ${{ matrix.target }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-pc-windows-msvc, i686-pc-windows-msvc]
+        profile: [debug, release]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust (stable, target ${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry + build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}-${{ matrix.profile }}
+          shared-key: hyperterm
+
+      - name: Build (debug)
+        if: matrix.profile == 'debug'
+        run: cargo build --verbose --target ${{ matrix.target }}
+
+      - name: Build (release, reproducible)
+        if: matrix.profile == 'release'
+        env:
+          # Reproducible-build hygiene: strip local path info from debug
+          # symbols so two different machines building the same commit
+          # produce byte-identical output modulo timestamps embedded by
+          # the linker itself.
+          RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
+        run: cargo build --verbose --release --target ${{ matrix.target }}
+
+      - name: Locate binary
+        id: bin
+        shell: bash
+        run: |
+          if [ "${{ matrix.profile }}" = "release" ]; then
+            echo "path=target/${{ matrix.target }}/release/hyperterm.exe" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=target/${{ matrix.target }}/debug/hyperterm.exe" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-${{ matrix.target }}-${{ matrix.profile }}
+          path: ${{ steps.bin.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------
+  # UNIT TESTS -- runs the normal (non-`#[ignore]`d) test suite.
+  # ---------------------------------------------------------------------
+  test:
+    name: Unit Tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: hyperterm
+      - name: Run unit + integration tests
+        run: cargo test --verbose --all-targets
+
+  # ---------------------------------------------------------------------
+  # BENCHMARKS -- SSH-layer, ANSI-parser, and scrollback throughput.
+  # Non-blocking: benchmark regressions are visible in the log but don't
+  # fail the build (no established baseline/hardware yet to gate on --
+  # see ROADMAP.md for turning this into a real regression gate).
+  # ---------------------------------------------------------------------
+  benchmark:
+    name: Benchmarks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: hyperterm
+      - name: Rendering / scrollback benchmark
+        run: cargo run --release --example bench_scrollback
+      - name: ANSI parser benchmark
+        run: cargo run --release --example bench_ansi_parse
+      - name: Search (indexed vs sequential) benchmark
+        run: cargo run --release --example bench_search
+
+  # ---------------------------------------------------------------------
+  # STRESS TEST + MEMORY LEAK CHECK -- the `#[ignore]`d heavy tests
+  # (millions of scrollback lines, rapid resize, repeated open/close).
+  # ---------------------------------------------------------------------
+  stress_test:
+    name: Stress Test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: hyperterm
+      - name: Run stress tests (release, single-threaded for clean I/O timing)
+        run: cargo test --release --test stress_test -- --ignored --test-threads=1 --nocapture
+
+  # ---------------------------------------------------------------------
+  # LINT + FORMAT -- fails the build on formatting drift or clippy
+  # warnings so "cargo fmt"/"cargo clippy" stay enforced from commit one.
+  # ---------------------------------------------------------------------
+  lint:
+    name: Lint (fmt + clippy)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: hyperterm
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  # ---------------------------------------------------------------------
+  # INSTALLER -- builds the release x64 binary and packages it with Inno
+  # Setup into a single Windows installer .exe. Runs on: push to main,
+  # tags, or manual dispatch with build_installer=true.
+  # ---------------------------------------------------------------------
+  installer:
+    name: Windows Installer
+    runs-on: windows-latest
+    needs: [build, test]
+    if: >
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_installer)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: hyperterm
+
+      - name: Build release binary
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile installer
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\hyperterm.iss
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-windows-installer
+          path: installer/output/*.exe
+          if-no-files-found: error
+          retention-days: 30

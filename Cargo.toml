@@ -1,0 +1,101 @@
+[package]
+name = "hyperterm"
+version = "0.1.0-phase1"
+edition = "2021"
+authors = ["Siro"]
+description = "High-performance, low-latency SSH terminal with unlimited virtual scrollback"
+license = "MIT"
+repository = "https://github.com/rahmatsobrian/hyperterm"
+readme = "README.md"
+
+[[bin]]
+name = "hyperterm"
+path = "src/main.rs"
+
+[dev-dependencies]
+# Only used by tests/known_hosts_tests.rs to construct synthetic keys.
+ed25519-dalek = "2"
+
+[build-dependencies]
+# Pinned <0.1.13 -- newer winresource pulls a `toml` major bump whose
+# transitive `indexmap`/`hashbrown` chain requires Rust edition2024
+# (rustc 1.85+). See CONTRIBUTING.md "Toolchain notes".
+winresource = "=0.1.12"
+
+[target.'cfg(windows)'.dependencies]
+# Only pulled in when actually targeting Windows -- see
+# src/logger/minidump.rs. Not built/linked on other platforms at all.
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_DataExchange",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Kernel",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dependencies]
+# --- SSH (pure Rust, no OpenSSL/libssh2 native dependency -> easy Windows cross build) ---
+# `russh` re-exports the `russh-keys` crate as `russh::keys`, so we only
+# depend on it directly here.
+russh = "0.44"
+async-trait = "0.1"
+
+# --- Async runtime ---
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+# --- Terminal I/O / rendering (cross-platform: Windows 7 console API + Windows 10+ VT) ---
+crossterm = { version = "0.27", features = ["event-stream"] }
+
+# --- ANSI / VT parsing ---
+vte = "0.13"
+
+# --- Logging ---
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "ansi", "registry", "std", "smallvec"] }
+tracing-appender = "0.2"
+
+# --- Config ---
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+directories = "5"
+
+# --- Search ---
+regex = "1"
+
+# --- Host key verification (known_hosts) ---
+sha2 = "0.10"
+data-encoding = "2"
+base64 = "0.21"
+
+# --- Disk cache / persistence ---
+memmap2 = "0.9"
+byteorder = "1"
+
+# --- CLI ---
+clap = { version = "4", features = ["derive"] }
+
+# --- Errors ---
+anyhow = "1"
+thiserror = "1"
+
+# --- Misc ---
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+crossbeam-channel = "0.5"
+zip = "0.6"
+sysinfo = "0.30"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "unwind"   # keep unwind so our panic hook can still write crash.log
+strip = false
+
+[profile.dev]
+opt-level = 0
