@@ -32,6 +32,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use super::ClientHandler;
 
 #[cfg(windows)]
+#[path = "pageant.rs"]
 pub mod pageant;
 
 /// Tries every identity offered by the running SSH agent against the

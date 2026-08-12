@@ -54,9 +54,14 @@ jobs:
       - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
         run: cargo update -p time
 
+      - name: Create logs directory
+        run: New-Item -ItemType Directory -Force -Path logs | Out-Null
+
       - name: Build (debug)
         if: matrix.profile == 'debug'
-        run: cargo build --verbose --target ${{ matrix.target }}
+        run: |
+          cargo build --verbose --target ${{ matrix.target }} 2>&1 | Tee-Object -FilePath "logs/build-${{ matrix.target }}-${{ matrix.profile }}.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build (release, reproducible)
         if: matrix.profile == 'release'
@@ -66,7 +71,18 @@ jobs:
           # produce byte-identical output modulo timestamps embedded by
           # the linker itself.
           RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
-        run: cargo build --verbose --release --target ${{ matrix.target }}
+        run: |
+          cargo build --verbose --release --target ${{ matrix.target }} 2>&1 | Tee-Object -FilePath "logs/build-${{ matrix.target }}-${{ matrix.profile }}.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-build-log-${{ matrix.target }}-${{ matrix.profile }}
+          path: logs/build-${{ matrix.target }}-${{ matrix.profile }}.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Locate binary
         id: bin
@@ -100,8 +116,20 @@ jobs:
           shared-key: hyperterm
       - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
         run: cargo update -p time
+      - name: Create logs directory
+        run: New-Item -ItemType Directory -Force -Path logs | Out-Null
       - name: Run unit + integration tests
-        run: cargo test --verbose --all-targets
+        run: |
+          cargo test --verbose --all-targets 2>&1 | Tee-Object -FilePath "logs/test.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-test-log
+          path: logs/test.log
+          if-no-files-found: ignore
+          retention-days: 14
 
   # ---------------------------------------------------------------------
   # BENCHMARKS -- SSH-layer, ANSI-parser, and scrollback throughput.
@@ -120,12 +148,28 @@ jobs:
           shared-key: hyperterm
       - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
         run: cargo update -p time
+      - name: Create logs directory
+        run: New-Item -ItemType Directory -Force -Path logs | Out-Null
       - name: Rendering / scrollback benchmark
-        run: cargo run --release --example bench_scrollback
+        run: |
+          cargo run --release --example bench_scrollback 2>&1 | Tee-Object -FilePath "logs/benchmark.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: ANSI parser benchmark
-        run: cargo run --release --example bench_ansi_parse
+        run: |
+          cargo run --release --example bench_ansi_parse 2>&1 | Tee-Object -FilePath "logs/benchmark.log" -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Search (indexed vs sequential) benchmark
-        run: cargo run --release --example bench_search
+        run: |
+          cargo run --release --example bench_search 2>&1 | Tee-Object -FilePath "logs/benchmark.log" -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload benchmark log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-benchmark-log
+          path: logs/benchmark.log
+          if-no-files-found: ignore
+          retention-days: 14
 
   # ---------------------------------------------------------------------
   # STRESS TEST + MEMORY LEAK CHECK -- the `#[ignore]`d heavy tests
@@ -142,8 +186,20 @@ jobs:
           shared-key: hyperterm
       - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
         run: cargo update -p time
+      - name: Create logs directory
+        run: New-Item -ItemType Directory -Force -Path logs | Out-Null
       - name: Run stress tests (release, single-threaded for clean I/O timing)
-        run: cargo test --release --test stress_test -- --ignored --test-threads=1 --nocapture
+        run: |
+          cargo test --release --test stress_test -- --ignored --test-threads=1 --nocapture 2>&1 | Tee-Object -FilePath "logs/stress-test.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload stress test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-stress-test-log
+          path: logs/stress-test.log
+          if-no-files-found: ignore
+          retention-days: 14
 
   # ---------------------------------------------------------------------
   # LINT + FORMAT -- fails the build on formatting drift or clippy
@@ -162,10 +218,24 @@ jobs:
           shared-key: hyperterm
       - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
         run: cargo update -p time
+      - name: Create logs directory
+        run: New-Item -ItemType Directory -Force -Path logs | Out-Null
       - name: cargo fmt --check
-        run: cargo fmt --all -- --check
+        run: |
+          cargo fmt --all -- --check 2>&1 | Tee-Object -FilePath "logs/lint.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: cargo clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: |
+          cargo clippy --all-targets -- -D warnings 2>&1 | Tee-Object -FilePath "logs/lint.log" -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload lint log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-lint-log
+          path: logs/lint.log
+          if-no-files-found: ignore
+          retention-days: 14
 
   # ---------------------------------------------------------------------
   # INSTALLER -- builds the release x64 binary and packages it with Inno
@@ -192,8 +262,13 @@ jobs:
       - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
         run: cargo update -p time
 
+      - name: Create logs directory
+        run: New-Item -ItemType Directory -Force -Path logs | Out-Null
+
       - name: Build release binary
-        run: cargo build --release --target x86_64-pc-windows-msvc
+        run: |
+          cargo build --release --target x86_64-pc-windows-msvc 2>&1 | Tee-Object -FilePath "logs/installer.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
@@ -201,7 +276,17 @@ jobs:
       - name: Compile installer
         shell: cmd
         run: |
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\hyperterm.iss
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\hyperterm.iss >> logs\installer.log 2>&1
+          if errorlevel 1 exit /b 1
+
+      - name: Upload installer log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperterm-installer-log
+          path: logs/installer.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
