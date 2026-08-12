@@ -8,6 +8,7 @@
 pub mod ansi_parser;
 pub mod config;
 pub mod disk_cache;
+pub mod gui;
 pub mod logger;
 pub mod renderer;
 pub mod search;

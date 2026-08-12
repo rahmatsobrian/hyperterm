@@ -13,6 +13,11 @@
 //! text-input UI widgets the console renderer doesn't have -- see
 //! ROADMAP.md). All tabs currently share one set of auth/host-key-policy
 //! settings from the CLI, not per-tab credentials.
+//!
+//! This is the console/TUI front-end. A native windowed GUI (single
+//! session, its own login screen) also lives behind `--gui` or auto-opens
+//! when no target is given at all -- see `run_gui` below and the
+//! `hyperterm::gui` module docs for its (separate) architecture.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -23,6 +28,7 @@ use futures::StreamExt;
 
 use hyperterm::ansi_parser::AnsiParser;
 use hyperterm::config;
+use hyperterm::gui;
 use hyperterm::logger::{self, crash};
 use hyperterm::renderer::CrosstermRenderer;
 use hyperterm::session_manager::{self, SplitFocus, TabAction};
@@ -96,6 +102,12 @@ struct Cli {
     /// Color theme (overrides config.toml). `dark` (default) or `light`.
     #[arg(long, value_enum)]
     theme: Option<CliTheme>,
+
+    /// Open the native GUI window instead of the console-mode terminal.
+    /// Implied automatically when no target HOST, `--session`, or
+    /// `--forget-host` is given -- e.g. double-clicking the .exe.
+    #[arg(long)]
+    gui: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -104,12 +116,87 @@ enum CliTheme {
     Light,
 }
 
-#[tokio::main]
-async fn main() {
+/// Loads config + resolves the known_hosts path + default username --
+/// shared by both the CLI (`run`) and GUI (`run_gui`) entry paths so the
+/// two front-ends never drift on how startup config is resolved.
+fn load_startup_context(cli: &Cli) -> Result<(config::AppConfig, PathBuf, String)> {
+    let known_hosts_path = cli
+        .known_hosts
+        .clone()
+        .unwrap_or_else(hyperterm::ssh_engine::known_hosts::KnownHostsStore::default_path);
+
+    let mut app_config = config::load_or_default().unwrap_or_else(|e| {
+        tracing::warn!(target: "hyperterm::main", "failed to load config, using defaults: {e}");
+        config::AppConfig::default()
+    });
+    if let Some(cap) = cli.ram_capacity {
+        app_config.scrollback.ram_line_capacity = cap;
+    }
+    if let Some(theme) = cli.theme {
+        app_config.general.theme = match theme {
+            CliTheme::Dark => config::Theme::Dark,
+            CliTheme::Light => config::Theme::Light,
+        };
+    }
+
+    let default_username = match &cli.username {
+        Some(u) => u.clone(),
+        None => std::env::var("USER")
+            .or_else(|_| std::env::var("USERNAME"))
+            .unwrap_or_else(|_| "root".into()),
+    };
+
+    Ok((app_config, known_hosts_path, default_username))
+}
+
+/// GUI entry path (see `hyperterm::gui` module docs). Deliberately does
+/// *not* run inside a `tokio` runtime on this (the calling) thread --
+/// `eframe::run_native` blocks the calling thread with its own event
+/// loop, and each SSH session the GUI opens spins up its own dedicated
+/// runtime thread, so nesting one here would only add an unused,
+/// never-entered runtime.
+fn run_gui(cli: Cli) -> Result<()> {
+    let (app_config, known_hosts_path, default_username) = load_startup_context(&cli)?;
+    let defaults = gui::LauncherDefaults {
+        host: cli.host.clone().unwrap_or_default(),
+        port: cli.port,
+        username: default_username,
+        identity: cli.identity.clone(),
+        use_agent: cli.agent,
+    };
+    gui::run(app_config, known_hosts_path, defaults)
+        .map_err(|e| anyhow::anyhow!("GUI error: {e}"))
+}
+
+fn main() {
     let _guard = logger::init();
     let cli = Cli::parse();
 
-    if let Err(err) = run(cli).await {
+    // Auto-GUI when invoked with nothing that implies console/scripted
+    // use (e.g. a plain double-click on the .exe) -- this is exactly the
+    // case that used to hit "a target HOST is required". `--gui` forces
+    // it explicitly regardless of other flags.
+    let wants_gui = cli.gui
+        || (cli.host.is_none() && cli.extra_sessions.is_empty() && cli.forget_host.is_none());
+
+    if wants_gui {
+        if let Err(err) = run_gui(cli) {
+            tracing::error!(target: "hyperterm::main", "fatal error: {:#}", err);
+            let _ = crash::write_crash_log("main::run_gui", &err);
+            eprintln!("HyperTerm exited with an error: {err:#}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("failed to start async runtime: {e}");
+            std::process::exit(1);
+        }
+    };
+    if let Err(err) = rt.block_on(run(cli)) {
         tracing::error!(target: "hyperterm::main", "fatal error: {:#}", err);
         let _ = crash::write_crash_log("main::run", &err);
         eprintln!("HyperTerm exited with an error: {err:#}");
@@ -121,10 +208,7 @@ async fn main() {
 async fn run(cli: Cli) -> Result<()> {
     tracing::info!(target: "hyperterm::main", "HyperTerm v{} starting", hyperterm::VERSION);
 
-    let known_hosts_path = cli
-        .known_hosts
-        .clone()
-        .unwrap_or_else(hyperterm::ssh_engine::known_hosts::KnownHostsStore::default_path);
+    let (app_config, known_hosts_path, default_username) = load_startup_context(&cli)?;
 
     if let Some(host_port) = &cli.forget_host {
         let mut store =
@@ -136,21 +220,6 @@ async fn run(cli: Cli) -> Result<()> {
         }
         return Ok(());
     }
-
-    let mut app_config = config::load_or_default().unwrap_or_else(|e| {
-        tracing::warn!(target: "hyperterm::main", "failed to load config, using defaults: {e}");
-        config::AppConfig::default()
-    });
-    if let Some(cap) = cli.ram_capacity {
-        app_config.scrollback.ram_line_capacity = cap;
-    }
-
-    let default_username = match &cli.username {
-        Some(u) => u.clone(),
-        None => std::env::var("USER")
-            .or_else(|_| std::env::var("USERNAME"))
-            .unwrap_or_else(|_| "root".into()),
-    };
 
     let mut targets: Vec<Target> = Vec::new();
     if let Some(host) = &cli.host {
@@ -229,12 +298,7 @@ async fn run(cli: Cli) -> Result<()> {
     }
 
     let mut renderer = CrosstermRenderer::new();
-    let theme = match cli.theme {
-        Some(CliTheme::Dark) => config::Theme::Dark,
-        Some(CliTheme::Light) => config::Theme::Light,
-        None => app_config.general.theme,
-    };
-    renderer.set_theme(theme);
+    renderer.set_theme(app_config.general.theme);
     renderer.init().context("initializing renderer")?;
 
     // main loop's `event_rx` end keeps working as long as at least one

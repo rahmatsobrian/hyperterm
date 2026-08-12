@@ -86,6 +86,13 @@ byteorder = "1"
 # --- CLI ---
 clap = { version = "4", features = ["derive"] }
 
+# --- Native GUI (egui/eframe) -- an actual windowed terminal, as opposed
+# to the console-mode `renderer` (crossterm) the CLI path uses. See
+# `src/gui/mod.rs` module docs for the architecture (bridges the sync
+# eframe event loop to the async SSH engine via a dedicated thread +
+# tokio::sync::mpsc, not a nested runtime).
+eframe = "0.28"
+
 # --- Errors ---
 anyhow = "1"
 thiserror = "1"
