@@ -67,18 +67,27 @@ fn trim_trailing_blanks(cells: &[Cell]) -> &[Cell] {
 /// the last as `wrapped = true`.
 fn rewrap_logical_line(cells: &[Cell], new_width: usize) -> Vec<Line> {
     if new_width == 0 {
-        return vec![Line { cells: cells.to_vec(), wrapped: false }];
+        return vec![Line {
+            cells: cells.to_vec(),
+            wrapped: false,
+        }];
     }
     let trimmed = trim_trailing_blanks(cells);
     if trimmed.is_empty() {
-        return vec![Line { cells: Vec::new(), wrapped: false }];
+        return vec![Line {
+            cells: Vec::new(),
+            wrapped: false,
+        }];
     }
 
     let mut out = Vec::with_capacity(trimmed.len() / new_width + 1);
     let mut chunks = trimmed.chunks(new_width).peekable();
     while let Some(chunk) = chunks.next() {
         let is_last = chunks.peek().is_none();
-        out.push(Line { cells: chunk.to_vec(), wrapped: !is_last });
+        out.push(Line {
+            cells: chunk.to_vec(),
+            wrapped: !is_last,
+        });
     }
     out
 }
@@ -98,7 +107,12 @@ pub fn reflow(lines: &[Line], new_width: usize) -> Vec<Line> {
 }
 
 fn plain_cell(ch: char) -> Cell {
-    Cell { ch, fg: Color::Default, bg: Color::Default, attrs: Attrs::default() }
+    Cell {
+        ch,
+        fg: Color::Default,
+        bg: Color::Default,
+        attrs: Attrs::default(),
+    }
 }
 
 /// Convenience for tests / callers building synthetic rows without caring
@@ -131,7 +145,10 @@ mod tests {
         // Originally written at width 10 as two wrapped physical rows:
         // "abcdefghij" (wrapped) + "klmno" (hard break) = logical line
         // "abcdefghijklmno" (15 chars).
-        let lines = vec![plain_row("abcdefghij", 10, true), plain_row("klmno", 10, false)];
+        let lines = vec![
+            plain_row("abcdefghij", 10, true),
+            plain_row("klmno", 10, false),
+        ];
         let reflowed = reflow(&lines, 5);
         // At width 5: "abcde" "fghij" "klmno" -- three rows, first two wrapped.
         assert_eq!(reflowed.len(), 3);

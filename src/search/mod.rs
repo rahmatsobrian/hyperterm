@@ -74,7 +74,11 @@ impl SearchEngine {
                     if let Some(line) = vbuf.get_line(line_id) {
                         let text = line.plain_text();
                         for (start, end_col) in matcher.find_all(&text) {
-                            let keep_going = on_match(SearchMatch { line_id, start_col: start, end_col });
+                            let keep_going = on_match(SearchMatch {
+                                line_id,
+                                start_col: start,
+                                end_col,
+                            });
                             if !keep_going {
                                 return Ok(());
                             }
@@ -97,7 +101,11 @@ impl SearchEngine {
                 let line_id = cursor + offset as u64;
                 let text = line.plain_text();
                 for (start, end_col) in matcher.find_all(&text) {
-                    let keep_going = on_match(SearchMatch { line_id, start_col: start, end_col });
+                    let keep_going = on_match(SearchMatch {
+                        line_id,
+                        start_col: start,
+                        end_col,
+                    });
                     if !keep_going {
                         return Ok(());
                     }
@@ -110,7 +118,11 @@ impl SearchEngine {
 }
 
 enum CompiledMatcher {
-    Plain { needle: String, case_sensitive: bool, whole_word: bool },
+    Plain {
+        needle: String,
+        case_sensitive: bool,
+        whole_word: bool,
+    },
     Regex(Regex),
 }
 
@@ -136,11 +148,14 @@ impl CompiledMatcher {
 
     fn find_all(&self, text: &str) -> Vec<(usize, usize)> {
         match self {
-            CompiledMatcher::Regex(re) => re
-                .find_iter(text)
-                .map(|m| (m.start(), m.end()))
-                .collect(),
-            CompiledMatcher::Plain { needle, case_sensitive, whole_word } => {
+            CompiledMatcher::Regex(re) => {
+                re.find_iter(text).map(|m| (m.start(), m.end())).collect()
+            }
+            CompiledMatcher::Plain {
+                needle,
+                case_sensitive,
+                whole_word,
+            } => {
                 if needle.is_empty() {
                     return Vec::new();
                 }

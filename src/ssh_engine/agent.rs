@@ -38,7 +38,10 @@ pub mod pageant;
 /// Tries every identity offered by the running SSH agent against the
 /// server, in the order the agent reports them (matching OpenSSH client
 /// behavior), returning `Ok(true)` on the first one the server accepts.
-pub(crate) async fn authenticate(handle: &mut Handle<ClientHandler>, username: &str) -> Result<bool> {
+pub(crate) async fn authenticate(
+    handle: &mut Handle<ClientHandler>,
+    username: &str,
+) -> Result<bool> {
     #[cfg(unix)]
     {
         let agent = AgentClient::connect_env()
@@ -132,8 +135,7 @@ where
 
     for key in identities {
         let fp = key.fingerprint();
-        let (returned_agent, result) =
-            handle.authenticate_future(username, key, agent).await;
+        let (returned_agent, result) = handle.authenticate_future(username, key, agent).await;
         agent = returned_agent;
         match result {
             Ok(true) => {

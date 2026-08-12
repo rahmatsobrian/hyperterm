@@ -20,7 +20,12 @@ fn make_line(i: u64) -> Line {
     Line {
         cells: text
             .chars()
-            .map(|ch| Cell { ch, fg: Color::Indexed((i % 16) as u8), bg: Color::Default, attrs: Attrs::default() })
+            .map(|ch| Cell {
+                ch,
+                fg: Color::Indexed((i % 16) as u8),
+                bg: Color::Default,
+                attrs: Attrs::default(),
+            })
             .collect(),
         wrapped: false,
     }

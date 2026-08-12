@@ -127,7 +127,8 @@ async fn run(cli: Cli) -> Result<()> {
         .unwrap_or_else(hyperterm::ssh_engine::known_hosts::KnownHostsStore::default_path);
 
     if let Some(host_port) = &cli.forget_host {
-        let mut store = hyperterm::ssh_engine::known_hosts::KnownHostsStore::load(&known_hosts_path)?;
+        let mut store =
+            hyperterm::ssh_engine::known_hosts::KnownHostsStore::load(&known_hosts_path)?;
         if store.forget(host_port)? {
             println!("Removed known_hosts entry for '{host_port}'.");
         } else {
@@ -146,12 +147,18 @@ async fn run(cli: Cli) -> Result<()> {
 
     let default_username = match &cli.username {
         Some(u) => u.clone(),
-        None => std::env::var("USER").or_else(|_| std::env::var("USERNAME")).unwrap_or_else(|_| "root".into()),
+        None => std::env::var("USER")
+            .or_else(|_| std::env::var("USERNAME"))
+            .unwrap_or_else(|_| "root".into()),
     };
 
     let mut targets: Vec<Target> = Vec::new();
     if let Some(host) = &cli.host {
-        targets.push(Target { host: host.clone(), port: cli.port, username: default_username.clone() });
+        targets.push(Target {
+            host: host.clone(),
+            port: cli.port,
+            username: default_username.clone(),
+        });
     }
     for spec in &cli.extra_sessions {
         targets.push(parse_target(spec, &default_username, cli.port)?);
@@ -188,7 +195,12 @@ async fn run(cli: Cli) -> Result<()> {
         );
         let ssh = SshSession::connect(connect_params, cols as u32, content_rows as u32)
             .await
-            .with_context(|| format!("connecting to {}@{}:{}", target.username, target.host, target.port))?;
+            .with_context(|| {
+                format!(
+                    "connecting to {}@{}:{}",
+                    target.username, target.host, target.port
+                )
+            })?;
         tracing::info!(target: "hyperterm::main", "connected and shell requested for {}", target.host);
 
         let session_id = format!(
@@ -281,7 +293,11 @@ fn parse_target(spec: &str, default_username: &str, default_port: u16) -> Result
         }
         _ => (host_part.to_string(), default_port),
     };
-    Ok(Target { host, port, username: user_part.unwrap_or_else(|| default_username.to_string()) })
+    Ok(Target {
+        host,
+        port,
+        username: user_part.unwrap_or_else(|| default_username.to_string()),
+    })
 }
 
 /// Commands sent from the main loop to a tab's dedicated background task
@@ -851,7 +867,12 @@ async fn open_new_tab(
         };
         let ssh = SshSession::connect(connect_params, cols as u32, content_rows as u32)
             .await
-            .with_context(|| format!("connecting to {}@{}:{}", target.username, target.host, target.port))?;
+            .with_context(|| {
+                format!(
+                    "connecting to {}@{}:{}",
+                    target.username, target.host, target.port
+                )
+            })?;
 
         let session_id = format!(
             "{}-{}-{}",
@@ -873,7 +894,8 @@ async fn open_new_tab(
             scroll_offset: 0,
         })
     };
-    run.await.map_err(|e: anyhow::Error| (title, format!("{e:#}")))
+    run.await
+        .map_err(|e: anyhow::Error| (title, format!("{e:#}")))
 }
 
 fn resize_pane(tabs: &mut [Tab], index: usize, cols: u32, rows: u32) {
@@ -908,16 +930,37 @@ fn next_open_tab(closed: &[bool], active: usize, action: TabAction) -> usize {
 /// plain text on a colored background -- red for errors, the same dark
 /// grey as the tab bar otherwise, so it's visually distinct from ordinary
 /// terminal content without needing a whole separate UI layer.
-fn render_dialog_line(text: &str, width: usize, is_error: bool) -> Vec<hyperterm::virtual_buffer::Cell> {
+fn render_dialog_line(
+    text: &str,
+    width: usize,
+    is_error: bool,
+) -> Vec<hyperterm::virtual_buffer::Cell> {
     use hyperterm::virtual_buffer::{Attrs, Cell, Color};
-    let bg = if is_error { Color::Indexed(1) } else { Color::Indexed(8) };
+    let bg = if is_error {
+        Color::Indexed(1)
+    } else {
+        Color::Indexed(8)
+    };
     let fg = Color::Indexed(15);
-    let mut cells = vec![Cell { ch: ' ', fg, bg, attrs: Attrs::default() }; width];
+    let mut cells = vec![
+        Cell {
+            ch: ' ',
+            fg,
+            bg,
+            attrs: Attrs::default()
+        };
+        width
+    ];
     for (i, ch) in text.chars().enumerate() {
         if i >= width {
             break;
         }
-        cells[i] = Cell { ch, fg, bg, attrs: Attrs::default() };
+        cells[i] = Cell {
+            ch,
+            fg,
+            bg,
+            attrs: Attrs::default(),
+        };
     }
     cells
 }
@@ -926,7 +969,10 @@ fn render_frame(
     core: &TerminalCore,
     vbuf: &mut VirtualBuffer,
     scroll_offset: u64,
-) -> (Vec<Vec<hyperterm::virtual_buffer::Cell>>, Option<(usize, usize)>) {
+) -> (
+    Vec<Vec<hyperterm::virtual_buffer::Cell>>,
+    Option<(usize, usize)>,
+) {
     if scroll_offset == 0 {
         return (core.visible_rows().to_vec(), Some(core.cursor()));
     }
@@ -998,7 +1044,10 @@ fn resolve_auth(cli: &Cli) -> Result<AuthMethod> {
         return Ok(AuthMethod::Agent);
     }
     if let Some(path) = &cli.identity {
-        return Ok(AuthMethod::PrivateKeyFile { path: path.clone(), passphrase: None });
+        return Ok(AuthMethod::PrivateKeyFile {
+            path: path.clone(),
+            passphrase: None,
+        });
     }
     if cli.password {
         let pw = rpassword_prompt("Password: ")?;
@@ -1009,7 +1058,10 @@ fn resolve_auth(cli: &Cli) -> Result<AuthMethod> {
     if let Some(base) = directories::BaseDirs::new() {
         let default_key = base.home_dir().join(".ssh").join("id_ed25519");
         if default_key.exists() {
-            return Ok(AuthMethod::PrivateKeyFile { path: default_key, passphrase: None });
+            return Ok(AuthMethod::PrivateKeyFile {
+                path: default_key,
+                passphrase: None,
+            });
         }
     }
     let pw = rpassword_prompt("Password: ")?;
@@ -1031,7 +1083,9 @@ fn rpassword_prompt(prompt: &str) -> Result<String> {
         if let Event::Key(key) = crossterm::event::read()? {
             match key.code {
                 KeyCode::Enter => break Ok(input.clone()),
-                KeyCode::Backspace => { input.pop(); }
+                KeyCode::Backspace => {
+                    input.pop();
+                }
                 KeyCode::Char(c) => input.push(c),
                 KeyCode::Esc => break Err(anyhow::anyhow!("password entry cancelled")),
                 _ => {}
@@ -1044,7 +1098,15 @@ fn rpassword_prompt(prompt: &str) -> Result<String> {
 }
 
 fn sanitize(s: &str) -> String {
-    s.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '.' { c } else { '_' }).collect()
+    s.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

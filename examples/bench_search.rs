@@ -18,7 +18,15 @@ use hyperterm::virtual_buffer::VirtualBuffer;
 
 fn make_line(text: &str) -> Line {
     Line {
-        cells: text.chars().map(|ch| Cell { ch, fg: Color::Default, bg: Color::Default, attrs: Attrs::default() }).collect(),
+        cells: text
+            .chars()
+            .map(|ch| Cell {
+                ch,
+                fg: Color::Default,
+                bg: Color::Default,
+                attrs: Attrs::default(),
+            })
+            .collect(),
         wrapped: false,
     }
 }
@@ -32,11 +40,18 @@ fn main() {
     println!("== HyperTerm Search Benchmark ==");
     println!("pushing {N} lines...");
     for i in 0..N {
-        vbuf.push_line(make_line(&format!("log entry {i} - routine status ok, nothing unusual here")));
+        vbuf.push_line(make_line(&format!(
+            "log entry {i} - routine status ok, nothing unusual here"
+        )));
     }
-    vbuf.push_line(make_line("CRITICAL-MARKER-4711 something went wrong in the pipeline"));
+    vbuf.push_line(make_line(
+        "CRITICAL-MARKER-4711 something went wrong in the pipeline",
+    ));
     for i in 0..N {
-        vbuf.push_line(make_line(&format!("log entry {} - more routine noise for padding", N + i)));
+        vbuf.push_line(make_line(&format!(
+            "log entry {} - more routine noise for padding",
+            N + i
+        )));
     }
     vbuf.checkpoint().unwrap();
     println!("total lines: {}", vbuf.total_lines());

@@ -46,7 +46,11 @@ pub fn apply_action(active: usize, tab_count: usize, action: TabAction) -> usize
 /// is responsible for actually removing the tab from its own storage;
 /// this just tells you which index should become active afterward.
 /// Returns `None` if this was the last tab (nothing left to be active).
-pub fn active_after_close(active: usize, closed_index: usize, tab_count_before: usize) -> Option<usize> {
+pub fn active_after_close(
+    active: usize,
+    closed_index: usize,
+    tab_count_before: usize,
+) -> Option<usize> {
     if tab_count_before <= 1 {
         return None;
     }
@@ -70,7 +74,15 @@ pub fn active_after_close(active: usize, closed_index: usize, tab_count_before: 
 pub fn render_tab_bar(titles: &[String], active: usize, width: usize) -> Vec<Cell> {
     let bg = Color::Indexed(8); // dark grey bar background
     let fg = Color::Indexed(15); // bright white text
-    let mut cells = vec![Cell { ch: ' ', fg, bg, attrs: Attrs::default() }; width];
+    let mut cells = vec![
+        Cell {
+            ch: ' ',
+            fg,
+            bg,
+            attrs: Attrs::default()
+        };
+        width
+    ];
     if titles.is_empty() || width == 0 {
         return cells;
     }
@@ -122,7 +134,12 @@ pub fn render_tab_bar(titles: &[String], active: usize, width: usize) -> Vec<Cel
             } else {
                 (fg, bg)
             };
-            cells[col] = Cell { ch, fg: cell_fg, bg: cell_bg, attrs: Attrs::default() };
+            cells[col] = Cell {
+                ch,
+                fg: cell_fg,
+                bg: cell_bg,
+                attrs: Attrs::default(),
+            };
             col += 1;
         }
         if col >= width {
@@ -267,7 +284,10 @@ mod tests {
         let titles: Vec<String> = (0..20).map(|i| format!("session{i}")).collect();
         let row = render_tab_bar(&titles, 19, 30);
         let text: String = row.iter().map(|c| c.ch).collect();
-        assert!(text.contains("20:session19"), "active tab must remain visible: {text:?}");
+        assert!(
+            text.contains("20:session19"),
+            "active tab must remain visible: {text:?}"
+        );
     }
 
     #[test]

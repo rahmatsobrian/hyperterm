@@ -108,7 +108,9 @@ pub struct LoggingConfig {
 
 impl Default for LoggingConfig {
     fn default() -> Self {
-        Self { level: "info".into() }
+        Self {
+            level: "info".into(),
+        }
     }
 }
 
@@ -125,7 +127,10 @@ pub struct SessionProfile {
 #[serde(tag = "type")]
 pub enum AuthMethod {
     Password,
-    PublicKey { private_key_path: PathBuf, passphrase_env_var: Option<String> },
+    PublicKey {
+        private_key_path: PathBuf,
+        passphrase_env_var: Option<String>,
+    },
     Agent,
 }
 
@@ -140,10 +145,10 @@ pub fn config_path() -> PathBuf {
 pub fn load_or_default() -> Result<AppConfig> {
     let path = config_path();
     if path.exists() {
-        let raw = fs::read_to_string(&path)
-            .with_context(|| format!("reading config at {path:?}"))?;
-        let cfg: AppConfig = toml::from_str(&raw)
-            .with_context(|| format!("parsing config at {path:?}"))?;
+        let raw =
+            fs::read_to_string(&path).with_context(|| format!("reading config at {path:?}"))?;
+        let cfg: AppConfig =
+            toml::from_str(&raw).with_context(|| format!("parsing config at {path:?}"))?;
         tracing::info!(target: "hyperterm::config", "loaded config from {:?}", path);
         Ok(cfg)
     } else {
@@ -169,7 +174,10 @@ pub fn save(cfg: &AppConfig) -> Result<()> {
 pub fn redacted_toml(cfg: &AppConfig) -> String {
     let mut clone = cfg.clone();
     for s in &mut clone.sessions {
-        if let AuthMethod::PublicKey { private_key_path, .. } = &mut s.auth {
+        if let AuthMethod::PublicKey {
+            private_key_path, ..
+        } = &mut s.auth
+        {
             *private_key_path = PathBuf::from("<redacted>");
         }
     }

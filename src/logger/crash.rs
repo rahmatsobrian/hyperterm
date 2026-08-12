@@ -35,7 +35,10 @@ pub fn write_crash_log(context: &str, err: &anyhow::Error) -> Result<PathBuf> {
             .collect::<Vec<_>>()
             .join("\n")
     );
-    let mut f = fs::OpenOptions::new().create(true).append(true).open(&path)?;
+    let mut f = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)?;
     f.write_all(content.as_bytes())?;
     tracing::error!(target: "hyperterm::crash", "wrote crash log to {:?}", path);
     Ok(path)
@@ -69,11 +72,10 @@ pub fn export_diagnostic_zip(config_toml_redacted: &str) -> Result<PathBuf> {
     let dir = logs_dir();
     let ts = chrono::Local::now().format("%Y%m%d-%H%M%S");
     let out_path = PathBuf::from(format!("diagnostic-report-{ts}.zip"));
-    let file = fs::File::create(&out_path)
-        .with_context(|| format!("creating {out_path:?}"))?;
+    let file = fs::File::create(&out_path).with_context(|| format!("creating {out_path:?}"))?;
     let mut zip = zip::ZipWriter::new(file);
-    let opts = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let opts =
+        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     // logs/*
     if let Ok(entries) = fs::read_dir(&dir) {

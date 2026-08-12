@@ -220,7 +220,12 @@ impl VirtualBuffer {
     ///
     /// Returns up to `want_rows` lines (fewer only if history itself is
     /// shorter than that near the very start of the buffer).
-    pub fn history_window(&mut self, target_width: usize, want_rows: usize, end_id_exclusive: u64) -> Vec<Line> {
+    pub fn history_window(
+        &mut self,
+        target_width: usize,
+        want_rows: usize,
+        end_id_exclusive: u64,
+    ) -> Vec<Line> {
         if want_rows == 0 || end_id_exclusive == 0 {
             return Vec::new();
         }

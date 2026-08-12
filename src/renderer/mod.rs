@@ -33,7 +33,9 @@ pub mod palette;
 use std::io::{stdout, Stdout, Write};
 
 use anyhow::Result;
-use crossterm::style::{Attribute, Color as CtColor, Colors, Print, ResetColor, SetAttribute, SetColors};
+use crossterm::style::{
+    Attribute, Color as CtColor, Colors, Print, ResetColor, SetAttribute, SetColors,
+};
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, execute, queue, terminal};
 
@@ -70,7 +72,12 @@ impl CrosstermRenderer {
 
     pub fn init(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
-        execute!(self.out, terminal::EnterAlternateScreen, cursor::Hide, crossterm::event::EnableMouseCapture)?;
+        execute!(
+            self.out,
+            terminal::EnterAlternateScreen,
+            cursor::Hide,
+            crossterm::event::EnableMouseCapture
+        )?;
         self.initialized = true;
         tracing::info!(target: "hyperterm::renderer", "crossterm renderer initialized");
         Ok(())
@@ -150,7 +157,11 @@ impl CrosstermRenderer {
         if self.last_cursor != cursor_pos {
             match cursor_pos {
                 Some((row, col)) => {
-                    queue!(self.out, cursor::Show, cursor::MoveTo(col as u16, row as u16))?;
+                    queue!(
+                        self.out,
+                        cursor::Show,
+                        cursor::MoveTo(col as u16, row as u16)
+                    )?;
                 }
                 None => {
                     queue!(self.out, cursor::Hide)?;
@@ -199,14 +210,27 @@ fn to_ct_color(palette: &Palette, c: Color, is_fg: bool) -> CtColor {
 
 fn write_styled(out: &mut Stdout, palette: &Palette, sample: &Cell, text: &str) -> Result<()> {
     queue!(out, ResetColor, SetAttribute(Attribute::Reset))?;
-    if sample.attrs.bold { queue!(out, SetAttribute(Attribute::Bold))?; }
-    if sample.attrs.italic { queue!(out, SetAttribute(Attribute::Italic))?; }
-    if sample.attrs.underline { queue!(out, SetAttribute(Attribute::Underlined))?; }
-    if sample.attrs.reverse { queue!(out, SetAttribute(Attribute::Reverse))?; }
-    if sample.attrs.strikethrough { queue!(out, SetAttribute(Attribute::CrossedOut))?; }
+    if sample.attrs.bold {
+        queue!(out, SetAttribute(Attribute::Bold))?;
+    }
+    if sample.attrs.italic {
+        queue!(out, SetAttribute(Attribute::Italic))?;
+    }
+    if sample.attrs.underline {
+        queue!(out, SetAttribute(Attribute::Underlined))?;
+    }
+    if sample.attrs.reverse {
+        queue!(out, SetAttribute(Attribute::Reverse))?;
+    }
+    if sample.attrs.strikethrough {
+        queue!(out, SetAttribute(Attribute::CrossedOut))?;
+    }
     queue!(
         out,
-        SetColors(Colors::new(to_ct_color(palette, sample.fg, true), to_ct_color(palette, sample.bg, false))),
+        SetColors(Colors::new(
+            to_ct_color(palette, sample.fg, true),
+            to_ct_color(palette, sample.bg, false)
+        )),
         Print(text)
     )?;
     Ok(())

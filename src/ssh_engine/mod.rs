@@ -30,7 +30,10 @@ use known_hosts::{KnownHostsStore, Verdict};
 #[derive(Debug, Clone)]
 pub enum AuthMethod {
     Password(String),
-    PrivateKeyFile { path: PathBuf, passphrase: Option<String> },
+    PrivateKeyFile {
+        path: PathBuf,
+        passphrase: Option<String>,
+    },
     Agent,
 }
 
@@ -82,7 +85,10 @@ impl client::Handler for ClientHandler {
                 );
                 Ok(true)
             }
-            Verdict::Mismatch { stored_algo, stored_fingerprint } => {
+            Verdict::Mismatch {
+                stored_algo,
+                stored_fingerprint,
+            } => {
                 // SECURITY: a changed key is refused unconditionally,
                 // regardless of `self.policy`. This is intentional -- see
                 // `known_hosts` module docs.
@@ -181,7 +187,9 @@ impl SshSession {
         tracing::info!(target: "hyperterm::ssh_engine", "connecting to {}:{}", params.host, params.port);
         let mut handle = client::connect(config, (params.host.as_str(), params.port), handler)
             .await
-            .with_context(|| format!("TCP/KEX connect to {}:{} failed", params.host, params.port))?;
+            .with_context(|| {
+                format!("TCP/KEX connect to {}:{} failed", params.host, params.port)
+            })?;
 
         let authenticated = match &params.auth {
             AuthMethod::Password(pw) => {
@@ -213,12 +221,18 @@ impl SshSession {
         }
         tracing::info!(target: "hyperterm::ssh_engine", "authenticated as '{}'", params.username);
 
-        let channel = handle.channel_open_session().await.context("opening session channel")?;
+        let channel = handle
+            .channel_open_session()
+            .await
+            .context("opening session channel")?;
         channel
             .request_pty(false, "xterm-256color", cols, rows, 0, 0, &[])
             .await
             .context("requesting PTY")?;
-        channel.request_shell(true).await.context("requesting shell")?;
+        channel
+            .request_shell(true)
+            .await
+            .context("requesting shell")?;
 
         Ok(Self { handle, channel })
     }
@@ -231,7 +245,9 @@ impl SshSession {
     pub async fn next_event(&mut self) -> Option<SshEvent> {
         match self.channel.wait().await {
             Some(ChannelMsg::Data { data }) => Some(SshEvent::Data(data.to_vec())),
-            Some(ChannelMsg::ExtendedData { data, .. }) => Some(SshEvent::ExtendedData(data.to_vec())),
+            Some(ChannelMsg::ExtendedData { data, .. }) => {
+                Some(SshEvent::ExtendedData(data.to_vec()))
+            }
             Some(ChannelMsg::ExitStatus { exit_status }) => Some(SshEvent::ExitStatus(exit_status)),
             Some(ChannelMsg::Eof) => Some(SshEvent::Eof),
             Some(ChannelMsg::Close) => Some(SshEvent::Closed),
@@ -241,7 +257,10 @@ impl SshSession {
     }
 
     pub async fn send_input(&self, bytes: &[u8]) -> Result<()> {
-        self.channel.data(bytes).await.context("writing to SSH channel")?;
+        self.channel
+            .data(bytes)
+            .await
+            .context("writing to SSH channel")?;
         Ok(())
     }
 

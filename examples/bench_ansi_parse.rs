@@ -32,7 +32,10 @@ fn main() {
     let total_bytes: usize = chunks.iter().map(|c| c.len()).sum();
 
     println!("== HyperTerm ANSI Parser Benchmark ==");
-    println!("{ITERATIONS} lines, {:.2} MB total", total_bytes as f64 / 1_000_000.0);
+    println!(
+        "{ITERATIONS} lines, {:.2} MB total",
+        total_bytes as f64 / 1_000_000.0
+    );
 
     let start = Instant::now();
     for chunk in &chunks {

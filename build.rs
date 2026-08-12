@@ -9,9 +9,15 @@ fn main() {
         let mut res = winresource::WindowsResource::new();
         res.set_icon("resources/icon.ico");
         res.set("ProductName", "HyperTerm");
-        res.set("FileDescription", "HyperTerm - High-performance SSH terminal");
+        res.set(
+            "FileDescription",
+            "HyperTerm - High-performance SSH terminal",
+        );
         res.set("LegalCopyright", "Copyright (c) Siro");
-        res.set_version_info(winresource::VersionInfo::PRODUCTVERSION, cargo_version_u64());
+        res.set_version_info(
+            winresource::VersionInfo::PRODUCTVERSION,
+            cargo_version_u64(),
+        );
         if let Err(e) = res.compile() {
             // Don't fail the whole build over a missing rc.exe / resource
             // compiler on unusual toolchains -- log and continue so

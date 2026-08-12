@@ -53,7 +53,12 @@ pub struct Cell {
 
 impl Default for Cell {
     fn default() -> Self {
-        Self { ch: ' ', fg: Color::Default, bg: Color::Default, attrs: Attrs::default() }
+        Self {
+            ch: ' ',
+            fg: Color::Default,
+            bg: Color::Default,
+            attrs: Attrs::default(),
+        }
     }
 }
 
@@ -70,7 +75,12 @@ pub struct Line {
 
 impl Line {
     pub fn plain_text(&self) -> String {
-        self.cells.iter().map(|c| c.ch).collect::<String>().trim_end().to_string()
+        self.cells
+            .iter()
+            .map(|c| c.ch)
+            .collect::<String>()
+            .trim_end()
+            .to_string()
     }
 
     /// Renders the line back out as raw bytes containing real ANSI SGR
@@ -84,11 +94,21 @@ impl Line {
             let attrs_bits = cell.attrs.to_bits();
             if cell.fg != last_fg || cell.bg != last_bg || attrs_bits != last_attrs {
                 out.push_str("\x1b[0");
-                if cell.attrs.bold { out.push_str(";1"); }
-                if cell.attrs.italic { out.push_str(";3"); }
-                if cell.attrs.underline { out.push_str(";4"); }
-                if cell.attrs.reverse { out.push_str(";7"); }
-                if cell.attrs.strikethrough { out.push_str(";9"); }
+                if cell.attrs.bold {
+                    out.push_str(";1");
+                }
+                if cell.attrs.italic {
+                    out.push_str(";3");
+                }
+                if cell.attrs.underline {
+                    out.push_str(";4");
+                }
+                if cell.attrs.reverse {
+                    out.push_str(";7");
+                }
+                if cell.attrs.strikethrough {
+                    out.push_str(";9");
+                }
                 match cell.fg {
                     Color::Default => {}
                     Color::Indexed(i) => out.push_str(&format!(";38;5;{i}")),
@@ -135,9 +155,18 @@ impl Line {
 
 fn write_color(buf: &mut Vec<u8>, c: Color) {
     match c {
-        Color::Default => { buf.push(0); buf.extend_from_slice(&[0, 0, 0]); }
-        Color::Indexed(i) => { buf.push(1); buf.extend_from_slice(&[i, 0, 0]); }
-        Color::Rgb(r, g, b) => { buf.push(2); buf.extend_from_slice(&[r, g, b]); }
+        Color::Default => {
+            buf.push(0);
+            buf.extend_from_slice(&[0, 0, 0]);
+        }
+        Color::Indexed(i) => {
+            buf.push(1);
+            buf.extend_from_slice(&[i, 0, 0]);
+        }
+        Color::Rgb(r, g, b) => {
+            buf.push(2);
+            buf.extend_from_slice(&[r, g, b]);
+        }
     }
 }
 

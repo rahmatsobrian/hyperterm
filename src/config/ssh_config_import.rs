@@ -71,8 +71,8 @@ struct Block {
 }
 
 pub fn import(path: &Path, default_username: &str) -> Result<Vec<SessionProfile>> {
-    let raw = fs::read_to_string(path)
-        .with_context(|| format!("reading OpenSSH config at {path:?}"))?;
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("reading OpenSSH config at {path:?}"))?;
 
     let blocks = parse_blocks(&raw);
 
@@ -126,7 +126,10 @@ fn parse_blocks(raw: &str) -> Vec<Block> {
                     blocks.push(b);
                 }
                 let patterns = value.split_whitespace().map(parse_pattern).collect();
-                current = Some(Block { criteria: MatchCriteria::Host(patterns), directives: Vec::new() });
+                current = Some(Block {
+                    criteria: MatchCriteria::Host(patterns),
+                    directives: Vec::new(),
+                });
             }
             "match" => {
                 if let Some(b) = current.take() {
@@ -142,7 +145,10 @@ fn parse_blocks(raw: &str) -> Vec<Block> {
                     );
                     MatchCriteria::Unsupported
                 });
-                current = Some(Block { criteria, directives: Vec::new() });
+                current = Some(Block {
+                    criteria,
+                    directives: Vec::new(),
+                });
             }
             "" => {}
             _ => {
@@ -167,9 +173,15 @@ fn parse_blocks(raw: &str) -> Vec<Block> {
 
 fn parse_pattern(raw: &str) -> Pattern {
     if let Some(stripped) = raw.strip_prefix('!') {
-        Pattern { negated: true, glob: stripped.to_string() }
+        Pattern {
+            negated: true,
+            glob: stripped.to_string(),
+        }
     } else {
-        Pattern { negated: false, glob: raw.to_string() }
+        Pattern {
+            negated: false,
+            glob: raw.to_string(),
+        }
     }
 }
 
@@ -238,7 +250,12 @@ fn glob_match_rec(p: &[char], t: &[char]) -> bool {
     }
 }
 
-fn lookup<'a>(blocks: &'a [Block], host_alias: &str, default_username: &str, key: &str) -> Option<&'a str> {
+fn lookup<'a>(
+    blocks: &'a [Block],
+    host_alias: &str,
+    default_username: &str,
+    key: &str,
+) -> Option<&'a str> {
     for block in blocks {
         if block_matches(block, host_alias, default_username) {
             if let Some((_, v)) = block.directives.iter().find(|(k, _)| k == key) {
@@ -250,11 +267,15 @@ fn lookup<'a>(blocks: &'a [Block], host_alias: &str, default_username: &str, key
 }
 
 fn resolve_profile(host_alias: &str, blocks: &[Block], default_username: &str) -> SessionProfile {
-    let hostname = lookup(blocks, host_alias, default_username, "hostname").unwrap_or(host_alias).to_string();
+    let hostname = lookup(blocks, host_alias, default_username, "hostname")
+        .unwrap_or(host_alias)
+        .to_string();
     let username = lookup(blocks, host_alias, default_username, "user")
         .map(|s| s.to_string())
         .unwrap_or_else(|| default_username.to_string());
-    let port: u16 = lookup(blocks, host_alias, default_username, "port").and_then(|s| s.parse().ok()).unwrap_or(22);
+    let port: u16 = lookup(blocks, host_alias, default_username, "port")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(22);
     let auth = match lookup(blocks, host_alias, default_username, "identityfile") {
         Some(path) => AuthMethod::PublicKey {
             private_key_path: shellexpand_home(path),
@@ -263,7 +284,13 @@ fn resolve_profile(host_alias: &str, blocks: &[Block], default_username: &str) -
         None => AuthMethod::Agent,
     };
 
-    SessionProfile { name: host_alias.to_string(), host: hostname, port, username, auth }
+    SessionProfile {
+        name: host_alias.to_string(),
+        host: hostname,
+        port,
+        username,
+        auth,
+    }
 }
 
 fn shellexpand_home(p: &str) -> std::path::PathBuf {
@@ -280,7 +307,8 @@ mod tests {
     use super::*;
 
     fn write_temp(contents: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("hyperterm-sshcfg-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("hyperterm-sshcfg-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join(format!("cfg-{}", uuid::Uuid::new_v4()));
         std::fs::write(&path, contents).unwrap();
@@ -331,7 +359,10 @@ mod tests {
             "Host !excluded.example.com *.example.com\n  User groupuser\n\nHost excluded.example.com\n  User specificuser\n",
         );
         let profiles = import(&path, "defaultuser").unwrap();
-        let excluded = profiles.iter().find(|p| p.name == "excluded.example.com").unwrap();
+        let excluded = profiles
+            .iter()
+            .find(|p| p.name == "excluded.example.com")
+            .unwrap();
         assert_eq!(excluded.username, "specificuser");
     }
 
@@ -353,7 +384,10 @@ mod tests {
     fn unsupported_match_sentinel_never_appears_as_a_fake_profile() {
         let path = write_temp("Match exec \"whoami\"\n  Port 1234\n");
         let profiles = import(&path, "defaultuser").unwrap();
-        assert!(profiles.is_empty(), "unsupported Match block must not produce a phantom host profile");
+        assert!(
+            profiles.is_empty(),
+            "unsupported Match block must not produce a phantom host profile"
+        );
     }
 
     #[test]
@@ -368,7 +402,9 @@ mod tests {
 
     #[test]
     fn match_all_behaves_like_wildcard_host() {
-        let path = write_temp("Match all\n  User matcheduser\n\nHost concrete\n  HostName concrete.example.com\n");
+        let path = write_temp(
+            "Match all\n  User matcheduser\n\nHost concrete\n  HostName concrete.example.com\n",
+        );
         let profiles = import(&path, "defaultuser").unwrap();
         assert_eq!(profiles[0].username, "matcheduser");
     }
@@ -382,7 +418,10 @@ mod tests {
         assert_eq!(as_alice[0].port, 4444);
 
         let as_bob = import(&path, "bob").unwrap();
-        assert_eq!(as_bob[0].port, 22, "Match user alice must not apply when connecting as bob");
+        assert_eq!(
+            as_bob[0].port, 22,
+            "Match user alice must not apply when connecting as bob"
+        );
     }
 
     #[test]
@@ -410,7 +449,9 @@ mod tests {
     fn match_user_comma_separated_list() {
         // Real OpenSSH `Match` syntax uses one comma-separated token per
         // criteria, not space-separated like `Host` lines.
-        let path = write_temp("Match user alice,bob\n  Port 5555\n\nHost target\n  HostName target.example.com\n");
+        let path = write_temp(
+            "Match user alice,bob\n  Port 5555\n\nHost target\n  HostName target.example.com\n",
+        );
         assert_eq!(import(&path, "alice").unwrap()[0].port, 5555);
         assert_eq!(import(&path, "bob").unwrap()[0].port, 5555);
         assert_eq!(import(&path, "carol").unwrap()[0].port, 22);

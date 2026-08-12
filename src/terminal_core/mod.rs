@@ -79,7 +79,12 @@ impl TerminalCore {
             // (see `virtual_buffer::reflow`), unlike a real `\n`.
             self.newline(vbuf, true);
         }
-        let cell = Cell { ch, fg: self.sgr.fg, bg: self.sgr.bg, attrs: self.sgr.attrs };
+        let cell = Cell {
+            ch,
+            fg: self.sgr.fg,
+            bg: self.sgr.bg,
+            attrs: self.sgr.attrs,
+        };
         self.grid[self.cursor_row][self.cursor_col] = cell;
         self.cursor_col += 1;
     }
@@ -111,8 +116,12 @@ impl TerminalCore {
         if self.cursor_row >= self.scroll_bottom {
             // Scroll the region up by one, pushing the top line into history.
             let evicted = self.grid.remove(self.scroll_top);
-            vbuf.push_line(Line { cells: evicted, wrapped: is_soft_wrap });
-            self.grid.insert(self.scroll_bottom, vec![Cell::default(); self.cols]);
+            vbuf.push_line(Line {
+                cells: evicted,
+                wrapped: is_soft_wrap,
+            });
+            self.grid
+                .insert(self.scroll_bottom, vec![Cell::default(); self.cols]);
         } else {
             self.cursor_row += 1;
         }
@@ -161,7 +170,9 @@ impl TerminalCore {
     // ---- Erasing ----
 
     pub fn erase_in_line(&mut self, mode: u16) {
-        let end = self.cursor_col.min(self.grid[self.cursor_row].len().saturating_sub(1));
+        let end = self
+            .cursor_col
+            .min(self.grid[self.cursor_row].len().saturating_sub(1));
         let row = &mut self.grid[self.cursor_row];
         match mode {
             0 => row[self.cursor_col..].fill(Cell::default()),
@@ -190,9 +201,13 @@ impl TerminalCore {
                 // clearing, matching how real terminals let you scroll back
                 // through a `clear`.
                 for r in 0..self.rows {
-                    let line = std::mem::replace(&mut self.grid[r], vec![Cell::default(); self.cols]);
+                    let line =
+                        std::mem::replace(&mut self.grid[r], vec![Cell::default(); self.cols]);
                     if line.iter().any(|c| c.ch != ' ') {
-                        vbuf.push_line(Line { cells: line, wrapped: false });
+                        vbuf.push_line(Line {
+                            cells: line,
+                            wrapped: false,
+                        });
                     }
                 }
             }
@@ -205,13 +220,27 @@ impl TerminalCore {
     pub fn reset_sgr(&mut self) {
         self.sgr = SgrState::default();
     }
-    pub fn set_bold(&mut self, v: bool) { self.sgr.attrs.bold = v; }
-    pub fn set_italic(&mut self, v: bool) { self.sgr.attrs.italic = v; }
-    pub fn set_underline(&mut self, v: bool) { self.sgr.attrs.underline = v; }
-    pub fn set_reverse(&mut self, v: bool) { self.sgr.attrs.reverse = v; }
-    pub fn set_strikethrough(&mut self, v: bool) { self.sgr.attrs.strikethrough = v; }
-    pub fn set_fg(&mut self, c: Color) { self.sgr.fg = c; }
-    pub fn set_bg(&mut self, c: Color) { self.sgr.bg = c; }
+    pub fn set_bold(&mut self, v: bool) {
+        self.sgr.attrs.bold = v;
+    }
+    pub fn set_italic(&mut self, v: bool) {
+        self.sgr.attrs.italic = v;
+    }
+    pub fn set_underline(&mut self, v: bool) {
+        self.sgr.attrs.underline = v;
+    }
+    pub fn set_reverse(&mut self, v: bool) {
+        self.sgr.attrs.reverse = v;
+    }
+    pub fn set_strikethrough(&mut self, v: bool) {
+        self.sgr.attrs.strikethrough = v;
+    }
+    pub fn set_fg(&mut self, c: Color) {
+        self.sgr.fg = c;
+    }
+    pub fn set_bg(&mut self, c: Color) {
+        self.sgr.bg = c;
+    }
 
     pub fn bell(&mut self) {
         self.bell_count += 1;

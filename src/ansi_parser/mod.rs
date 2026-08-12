@@ -22,7 +22,9 @@ pub struct AnsiParser {
 
 impl Default for AnsiParser {
     fn default() -> Self {
-        Self { inner: VteParser::new() }
+        Self {
+            inner: VteParser::new(),
+        }
     }
 }
 
@@ -90,10 +92,19 @@ impl<'a> Perform for Performer<'a> {
         }
     }
 
-    fn csi_dispatch(&mut self, params: &Params, _intermediates: &[u8], _ignore: bool, action: char) {
+    fn csi_dispatch(
+        &mut self,
+        params: &Params,
+        _intermediates: &[u8],
+        _ignore: bool,
+        action: char,
+    ) {
         let p = params_to_vec(params);
         let n = |i: usize, default: usize| -> usize {
-            p.get(i).copied().filter(|&v| v != 0).unwrap_or(default as u16) as usize
+            p.get(i)
+                .copied()
+                .filter(|&v| v != 0)
+                .unwrap_or(default as u16) as usize
         };
 
         match action {
@@ -106,7 +117,9 @@ impl<'a> Perform for Performer<'a> {
                 let col = p.get(1).copied().unwrap_or(1).max(1) as usize;
                 self.core.cursor_to(row, col);
             }
-            'J' => self.core.erase_in_display(p.get(0).copied().unwrap_or(0), self.vbuf),
+            'J' => self
+                .core
+                .erase_in_display(p.get(0).copied().unwrap_or(0), self.vbuf),
             'K' => self.core.erase_in_line(p.get(0).copied().unwrap_or(0)),
             'm' => apply_sgr(self.core, &p),
             'r' => {
@@ -169,7 +182,11 @@ fn apply_sgr(core: &mut TerminalCore, p: &[u16]) {
                         5 => {
                             if let Some(&idx) = p.get(i + 2) {
                                 let c = Color::Indexed(idx as u8);
-                                if is_fg { core.set_fg(c); } else { core.set_bg(c); }
+                                if is_fg {
+                                    core.set_fg(c);
+                                } else {
+                                    core.set_bg(c);
+                                }
                             }
                             i += 2;
                         }
@@ -178,7 +195,11 @@ fn apply_sgr(core: &mut TerminalCore, p: &[u16]) {
                                 (p.get(i + 2), p.get(i + 3), p.get(i + 4))
                             {
                                 let c = Color::Rgb(r as u8, g as u8, b as u8);
-                                if is_fg { core.set_fg(c); } else { core.set_bg(c); }
+                                if is_fg {
+                                    core.set_fg(c);
+                                } else {
+                                    core.set_bg(c);
+                                }
                             }
                             i += 4;
                         }

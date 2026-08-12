@@ -9,7 +9,8 @@ use hyperterm::ssh_engine::known_hosts::{KnownHostsStore, Verdict};
 use russh::keys::key::{KeyPair, PublicKey};
 
 fn temp_path(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("hyperterm-knownhosts-test-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("hyperterm-knownhosts-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir.join(format!("{name}.known_hosts"))
 }
@@ -21,7 +22,9 @@ fn synthetic_key(seed: u8) -> PublicKey {
     bytes[0] = seed;
     let signing = ed25519_dalek::SigningKey::from_bytes(&bytes);
     let key_pair = KeyPair::Ed25519(signing);
-    key_pair.clone_public_key().expect("derive public key from synthetic keypair")
+    key_pair
+        .clone_public_key()
+        .expect("derive public key from synthetic keypair")
 }
 
 #[test]
@@ -42,7 +45,10 @@ fn trusted_host_matches_on_next_check() {
 
     store.trust("example.com:22", &key).unwrap();
 
-    assert!(matches!(store.check("example.com:22", &key), Verdict::Matches));
+    assert!(matches!(
+        store.check("example.com:22", &key),
+        Verdict::Matches
+    ));
 }
 
 #[test]
@@ -73,7 +79,10 @@ fn persists_across_reload() {
     }
     // Reopen fresh, as HyperTerm would on the next launch.
     let reopened = KnownHostsStore::load(&path).unwrap();
-    assert!(matches!(reopened.check("persisted.example:2222", &key), Verdict::Matches));
+    assert!(matches!(
+        reopened.check("persisted.example:2222", &key),
+        Verdict::Matches
+    ));
 }
 
 #[test]
@@ -88,8 +97,14 @@ fn different_hosts_are_independent() {
 
     // host-b was never trusted, so even though *a* key exists for host-a,
     // host-b should still be reported as New, not accidentally matched.
-    assert!(matches!(store.check("host-b.example:22", &key_b), Verdict::New));
-    assert!(matches!(store.check("host-a.example:22", &key_a), Verdict::Matches));
+    assert!(matches!(
+        store.check("host-b.example:22", &key_b),
+        Verdict::New
+    ));
+    assert!(matches!(
+        store.check("host-a.example:22", &key_a),
+        Verdict::Matches
+    ));
 }
 
 #[test]
@@ -105,13 +120,25 @@ fn forget_removes_only_the_targeted_host() {
     let removed = store.forget("forget-me.example:22").unwrap();
     assert!(removed);
 
-    assert!(matches!(store.check("forget-me.example:22", &key_b), Verdict::New));
-    assert!(matches!(store.check("keep-me.example:22", &key_a), Verdict::Matches));
+    assert!(matches!(
+        store.check("forget-me.example:22", &key_b),
+        Verdict::New
+    ));
+    assert!(matches!(
+        store.check("keep-me.example:22", &key_a),
+        Verdict::Matches
+    ));
 
     // Survives reload -- forget() must persist, not just mutate in-memory.
     let reopened = KnownHostsStore::load(&path).unwrap();
-    assert!(matches!(reopened.check("forget-me.example:22", &key_b), Verdict::New));
-    assert!(matches!(reopened.check("keep-me.example:22", &key_a), Verdict::Matches));
+    assert!(matches!(
+        reopened.check("forget-me.example:22", &key_b),
+        Verdict::New
+    ));
+    assert!(matches!(
+        reopened.check("keep-me.example:22", &key_a),
+        Verdict::Matches
+    ));
 }
 
 #[test]

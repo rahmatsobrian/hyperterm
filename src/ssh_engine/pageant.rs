@@ -70,7 +70,12 @@ fn find_pageant_window() -> Option<HWND> {
     let class_name = CString::new("Pageant").ok()?;
     let window_name = CString::new("Pageant").ok()?;
     // SAFETY: both C strings are valid, nul-terminated, and outlive this call.
-    let hwnd = unsafe { FindWindowA(class_name.as_ptr() as *const u8, window_name.as_ptr() as *const u8) };
+    let hwnd = unsafe {
+        FindWindowA(
+            class_name.as_ptr() as *const u8,
+            window_name.as_ptr() as *const u8,
+        )
+    };
     if hwnd == 0 {
         None
     } else {
@@ -99,7 +104,8 @@ async fn bridge_task(mut server_side: DuplexStream) {
         request.extend_from_slice(&len_buf);
         request.extend_from_slice(&payload);
 
-        let response = match tokio::task::spawn_blocking(move || pageant_round_trip(&request)).await {
+        let response = match tokio::task::spawn_blocking(move || pageant_round_trip(&request)).await
+        {
             Ok(Ok(resp)) => resp,
             Ok(Err(e)) => {
                 tracing::error!(target: "hyperterm::ssh_engine::pageant", "Pageant round trip failed: {e}");
@@ -164,7 +170,10 @@ fn pageant_round_trip(request: &[u8]) -> io::Result<Vec<u8>> {
     if request.len() > MAPPING_SIZE {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("agent request ({} bytes) exceeds Pageant mapping size", request.len()),
+            format!(
+                "agent request ({} bytes) exceeds Pageant mapping size",
+                request.len()
+            ),
         ));
     }
 
@@ -185,11 +194,13 @@ fn pageant_round_trip(request: &[u8]) -> io::Result<Vec<u8>> {
     // SAFETY: `hwnd` was just confirmed to exist; `cds` is a valid,
     // stack-local `COPYDATASTRUCT` whose pointed-to data (`mapping_name_bytes`)
     // outlives this call.
-    let result = unsafe {
-        SendMessageA(hwnd, WM_COPYDATA, 0, &cds as *const COPYDATASTRUCT as isize)
-    };
+    let result =
+        unsafe { SendMessageA(hwnd, WM_COPYDATA, 0, &cds as *const COPYDATASTRUCT as isize) };
     if result == 0 {
-        return Err(io::Error::new(io::ErrorKind::Other, "Pageant returned failure for agent request"));
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Pageant returned failure for agent request",
+        ));
     }
 
     // Response is a length-prefixed frame written back into the same
@@ -230,7 +241,9 @@ struct ViewGuard(*mut core::ffi::c_void);
 impl Drop for ViewGuard {
     fn drop(&mut self) {
         unsafe {
-            UnmapViewOfFile(windows_sys::Win32::System::Memory::MEMORY_MAPPED_VIEW_ADDRESS { Value: self.0 });
+            UnmapViewOfFile(
+                windows_sys::Win32::System::Memory::MEMORY_MAPPED_VIEW_ADDRESS { Value: self.0 },
+            );
         }
     }
 }

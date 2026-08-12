@@ -50,7 +50,10 @@ pub enum HostKeyPolicy {
 pub enum Verdict {
     Matches,
     New,
-    Mismatch { stored_algo: String, stored_fingerprint: String },
+    Mismatch {
+        stored_algo: String,
+        stored_fingerprint: String,
+    },
 }
 
 pub struct KnownHostsStore {
@@ -81,7 +84,10 @@ impl KnownHostsStore {
                 if let (Some(host_port), Some(algo), Some(key_b64)) =
                     (parts.next(), parts.next(), parts.next())
                 {
-                    entries.insert(host_port.to_string(), (algo.to_string(), key_b64.to_string()));
+                    entries.insert(
+                        host_port.to_string(),
+                        (algo.to_string(), key_b64.to_string()),
+                    );
                 }
             }
         }
@@ -91,7 +97,10 @@ impl KnownHostsStore {
             entries.len(),
             path
         );
-        Ok(Self { path: path.to_path_buf(), entries })
+        Ok(Self {
+            path: path.to_path_buf(),
+            entries,
+        })
     }
 
     pub fn check(&self, host_port: &str, key: &PublicKey) -> Verdict {
@@ -116,7 +125,10 @@ impl KnownHostsStore {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let mut f = fs::OpenOptions::new().create(true).append(true).open(&self.path)?;
+        let mut f = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)?;
         writeln!(f, "{host_port} {algo} {b64}")?;
 
         self.entries.insert(host_port.to_string(), (algo, b64));
@@ -191,7 +203,12 @@ pub fn prompt_accept_new_key(host_port: &str, algo: &str, fingerprint: &str) -> 
 /// Blocking prompt shown for a *mismatched* key -- deliberately does not
 /// offer a "trust anyway" option inline; the wording matches the severity
 /// real SSH clients use, since this is the actual MITM-detection moment.
-pub fn warn_mismatched_key(host_port: &str, stored_algo: &str, stored_fingerprint: &str, new_fingerprint: &str) {
+pub fn warn_mismatched_key(
+    host_port: &str,
+    stored_algo: &str,
+    stored_fingerprint: &str,
+    new_fingerprint: &str,
+) {
     eprintln!();
     eprintln!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
     eprintln!("@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @");

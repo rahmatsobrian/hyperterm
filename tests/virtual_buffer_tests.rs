@@ -17,7 +17,12 @@ fn make_line(text: &str) -> Line {
     Line {
         cells: text
             .chars()
-            .map(|ch| Cell { ch, fg: Color::Indexed(2), bg: Color::Default, attrs: Attrs::default() })
+            .map(|ch| Cell {
+                ch,
+                fg: Color::Indexed(2),
+                bg: Color::Default,
+                attrs: Attrs::default(),
+            })
             .collect(),
         wrapped: false,
     }

@@ -5,7 +5,8 @@ use hyperterm::terminal_core::TerminalCore;
 use hyperterm::virtual_buffer::{Color, VirtualBuffer};
 
 fn fresh_vbuf(name: &str) -> VirtualBuffer {
-    let dir = std::env::temp_dir().join(format!("hyperterm-ansi-test-{name}-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("hyperterm-ansi-test-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     VirtualBuffer::open(&dir, "ansi-test", 1000).unwrap()

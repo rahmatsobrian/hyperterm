@@ -99,7 +99,8 @@ impl DiskCache {
         self.cache_writer.write_u32::<LittleEndian>(len)?;
         self.cache_writer.write_all(content)?;
 
-        self.index_writer.write_u64::<LittleEndian>(self.write_offset)?;
+        self.index_writer
+            .write_u64::<LittleEndian>(self.write_offset)?;
         self.index_writer.write_u32::<LittleEndian>(len)?;
 
         let id = self.line_count;
@@ -132,7 +133,10 @@ impl DiskCache {
     /// Random-access read of a single historical line by id.
     pub fn read_line(&mut self, line_id: u64) -> io::Result<Vec<u8>> {
         if line_id >= self.line_count {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "line_id out of range"));
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "line_id out of range",
+            ));
         }
         self.flush()?;
         let (offset, len) = self.read_index_entry(line_id)?;
@@ -141,7 +145,10 @@ impl DiskCache {
         let start = (offset + 4) as usize; // skip the length prefix
         let end = start + len as usize;
         if end > mmap.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "cache file truncated"));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "cache file truncated",
+            ));
         }
         Ok(mmap[start..end].to_vec())
     }

@@ -151,8 +151,14 @@ mod tests {
     fn default_fg_bg_differ_between_themes() {
         let dark = Palette::dark();
         let light = Palette::light();
-        assert_ne!(dark.resolve(VColor::Default, true), light.resolve(VColor::Default, true));
-        assert_ne!(dark.resolve(VColor::Default, false), light.resolve(VColor::Default, false));
+        assert_ne!(
+            dark.resolve(VColor::Default, true),
+            light.resolve(VColor::Default, true)
+        );
+        assert_ne!(
+            dark.resolve(VColor::Default, false),
+            light.resolve(VColor::Default, false)
+        );
     }
 
     #[test]
@@ -163,14 +169,20 @@ mod tests {
         let Rgb(lr, lg, lb) = light.resolve(VColor::Default, false);
         let dark_luma = dr as u32 + dg as u32 + db as u32;
         let light_luma = lr as u32 + lg as u32 + lb as u32;
-        assert!(light_luma > dark_luma, "light theme background should be brighter than dark theme's");
+        assert!(
+            light_luma > dark_luma,
+            "light theme background should be brighter than dark theme's"
+        );
     }
 
     #[test]
     fn indexed_256_cube_is_theme_independent() {
         let dark = Palette::dark();
         let light = Palette::light();
-        assert_eq!(dark.resolve(VColor::Indexed(196), true), light.resolve(VColor::Indexed(196), true));
+        assert_eq!(
+            dark.resolve(VColor::Indexed(196), true),
+            light.resolve(VColor::Indexed(196), true)
+        );
     }
 
     #[test]

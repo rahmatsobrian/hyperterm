@@ -47,7 +47,9 @@ use windows_sys::Win32::Storage::FileSystem::{
 use windows_sys::Win32::System::Diagnostics::Debug::{
     MiniDumpWriteDump, EXCEPTION_POINTERS, MINIDUMP_EXCEPTION_INFORMATION, MINIDUMP_TYPE,
 };
-use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetCurrentProcessId, GetCurrentThreadId};
+use windows_sys::Win32::System::Threading::{
+    GetCurrentProcess, GetCurrentProcessId, GetCurrentThreadId,
+};
 
 // MiniDumpNormal (0x0000) -- a compact dump (thread stacks, modules,
 // exception context if any) rather than a full memory dump. Chosen because
@@ -60,7 +62,10 @@ const MINI_DUMP_NORMAL: MINIDUMP_TYPE = 0x0000_0000;
 
 fn to_wide(path: &Path) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
-    path.as_os_str().encode_wide().chain(std::iter::once(0)).collect()
+    path.as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }
 
 /// Opens (creating if needed) the target `.dmp` file and calls
@@ -99,7 +104,8 @@ fn write_dump(path: &Path, exception_pointers: Option<*mut EXCEPTION_POINTERS>) 
         ExceptionPointers: exception_pointers.unwrap_or(std::ptr::null_mut()),
         ClientPointers: 0,
     };
-    let exception_param_ptr: *const MINIDUMP_EXCEPTION_INFORMATION = if exception_pointers.is_some() {
+    let exception_param_ptr: *const MINIDUMP_EXCEPTION_INFORMATION = if exception_pointers.is_some()
+    {
         &exception_info as *const MINIDUMP_EXCEPTION_INFORMATION
     } else {
         std::ptr::null()
