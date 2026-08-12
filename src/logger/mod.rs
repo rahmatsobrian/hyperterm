@@ -59,7 +59,7 @@ pub fn logs_dir() -> PathBuf {
 /// Initialize the global tracing subscriber:
 ///   - stdout (human readable, colored, for interactive/debug runs)
 ///   - `logs/hyperterm.YYYY-MM-DD.log` (daily rotation, full detail, file+line+thread)
-/// Also installs a panic hook that writes `logs/panic.log`.
+///     Also installs a panic hook that writes `logs/panic.log`.
 pub fn init() -> LoggerGuard {
     let dir = logs_dir();
     let file_appender = tracing_appender::rolling::daily(&dir, "hyperterm.log");

@@ -113,17 +113,17 @@ impl<'a> Perform for Performer<'a> {
             'C' => self.core.cursor_forward(n(0, 1)),
             'D' => self.core.cursor_back(n(0, 1)),
             'H' | 'f' => {
-                let row = p.get(0).copied().unwrap_or(1).max(1) as usize;
+                let row = p.first().copied().unwrap_or(1).max(1) as usize;
                 let col = p.get(1).copied().unwrap_or(1).max(1) as usize;
                 self.core.cursor_to(row, col);
             }
             'J' => self
                 .core
-                .erase_in_display(p.get(0).copied().unwrap_or(0), self.vbuf),
-            'K' => self.core.erase_in_line(p.get(0).copied().unwrap_or(0)),
+                .erase_in_display(p.first().copied().unwrap_or(0), self.vbuf),
+            'K' => self.core.erase_in_line(p.first().copied().unwrap_or(0)),
             'm' => apply_sgr(self.core, &p),
             'r' => {
-                let top = p.get(0).copied().unwrap_or(1).max(1) as usize;
+                let top = p.first().copied().unwrap_or(1).max(1) as usize;
                 let bottom = p.get(1).copied().unwrap_or(self.core.rows as u16) as usize;
                 self.core.set_scroll_region(top, bottom);
             }

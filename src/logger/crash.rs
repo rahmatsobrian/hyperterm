@@ -11,7 +11,7 @@
 //!   - Windows / OS info
 //!   - application version
 //!   - crash dump, if one exists at `logs/crash.dmp` (Phase 2: minidump via `dbghelp`)
-//! into `diagnostic-report-<timestamp>.zip`.
+//!     into `diagnostic-report-<timestamp>.zip`.
 
 use std::fs;
 use std::io::Write;

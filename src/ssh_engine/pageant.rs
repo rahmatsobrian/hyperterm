@@ -197,10 +197,7 @@ fn pageant_round_trip(request: &[u8]) -> io::Result<Vec<u8>> {
     let result =
         unsafe { SendMessageA(hwnd, WM_COPYDATA, 0, &cds as *const COPYDATASTRUCT as isize) };
     if result == 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "Pageant returned failure for agent request",
-        ));
+        return Err(io::Error::other("Pageant returned failure for agent request"));
     }
 
     // Response is a length-prefixed frame written back into the same

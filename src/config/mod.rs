@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod ssh_config_import;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub general: GeneralConfig,
@@ -23,18 +23,6 @@ pub struct AppConfig {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub sessions: Vec<SessionProfile>,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            terminal: TerminalConfig::default(),
-            scrollback: ScrollbackConfig::default(),
-            logging: LoggingConfig::default(),
-            sessions: Vec::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
