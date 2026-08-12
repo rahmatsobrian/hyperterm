@@ -58,6 +58,13 @@ vte = "0.13"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "ansi", "registry", "std", "smallvec"] }
 tracing-appender = "0.2"
+# NOTE: tracing-appender and `zip` below both pull in the `time` crate.
+# Cargo.lock may end up pinned to a `time` 0.3.x patch that fails to
+# compile on newer rustc with E0282 ("type annotations needed for
+# Box<_>") -- fixed upstream in time >=0.3.23. CI runs
+# `cargo update -p time` before building to keep it unstuck; if you
+# hit E0282 pointing at time's format_description/parse/mod.rs
+# locally, run the same command.
 
 # --- Config ---
 serde = { version = "1", features = ["derive"] }

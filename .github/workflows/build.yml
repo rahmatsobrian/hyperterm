@@ -51,6 +51,9 @@ jobs:
           key: ${{ matrix.target }}-${{ matrix.profile }}
           shared-key: hyperterm
 
+      - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
+        run: cargo update -p time
+
       - name: Build (debug)
         if: matrix.profile == 'debug'
         run: cargo build --verbose --target ${{ matrix.target }}
@@ -95,6 +98,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: hyperterm
+      - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
+        run: cargo update -p time
       - name: Run unit + integration tests
         run: cargo test --verbose --all-targets
 
@@ -113,6 +118,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: hyperterm
+      - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
+        run: cargo update -p time
       - name: Rendering / scrollback benchmark
         run: cargo run --release --example bench_scrollback
       - name: ANSI parser benchmark
@@ -133,6 +140,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: hyperterm
+      - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
+        run: cargo update -p time
       - name: Run stress tests (release, single-threaded for clean I/O timing)
         run: cargo test --release --test stress_test -- --ignored --test-threads=1 --nocapture
 
@@ -151,6 +160,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: hyperterm
+      - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
+        run: cargo update -p time
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
       - name: cargo clippy
@@ -177,6 +188,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: hyperterm
+
+      - name: Fix `time` crate (E0282 on newer rustc, see Cargo.lock note)
+        run: cargo update -p time
 
       - name: Build release binary
         run: cargo build --release --target x86_64-pc-windows-msvc
