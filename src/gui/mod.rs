@@ -553,7 +553,7 @@ impl App {
                 .show(ui, |ui| match launcher.session_kind {
                     SessionKind::LocalShell => {
                         ui.label("Shell");
-                        egui::ComboBox::from_id_salt("shell_kind")
+                        egui::ComboBox::from_id_source("shell_kind")
                             .selected_text(launcher.shell_kind.label())
                             .show_ui(ui, |ui| {
                                 for kind in ShellKind::ALL {
