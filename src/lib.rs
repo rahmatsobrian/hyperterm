@@ -9,6 +9,8 @@ pub mod ansi_parser;
 pub mod config;
 pub mod disk_cache;
 pub mod gui;
+#[cfg(windows)]
+pub mod local_shell;
 pub mod logger;
 pub mod renderer;
 pub mod search;

@@ -93,6 +93,13 @@ clap = { version = "4", features = ["derive"] }
 # tokio::sync::mpsc, not a nested runtime).
 eframe = "0.28"
 
+# --- Local shell sessions (cmd.exe / PowerShell) inside the GUI, via
+# ConPTY. `portable-pty` (the pty crate wezterm itself uses) wraps the
+# Win32 ConPTY/STARTUPINFOEX plumbing -- notoriously fiddly to get right
+# by hand -- behind a small, well-exercised safe API. See
+# `src/local_shell/mod.rs`.
+portable-pty = "0.9"
+
 # --- Errors ---
 anyhow = "1"
 thiserror = "1"
