@@ -82,6 +82,11 @@ pub fn spawn(
     let (evt_tx, evt_rx) = mpsc::channel::<ShellToHost>();
 
     std::thread::spawn(move || {
+        tracing::info!(
+            target: "hyperterm::local_shell",
+            ?shell, cols, rows, "spawning local shell"
+        );
+
         let pty_system = native_pty_system();
         let pair = match pty_system.openpty(PtySize {
             rows: rows.min(u16::MAX as u32) as u16,
@@ -91,14 +96,33 @@ pub fn spawn(
         }) {
             Ok(p) => p,
             Err(e) => {
+                tracing::error!(target: "hyperterm::local_shell", "opening pty failed: {e:#}");
                 let _ = evt_tx.send(ShellToHost::StartFailed(format!("opening pty: {e:#}")));
                 return;
             }
         };
 
-        let mut child = match pair.slave.spawn_command(CommandBuilder::new(shell.program())) {
+        // Explicit cwd + inherited env: when the exe is launched from a
+        // volatile working directory (e.g. run straight out of an archive
+        // viewer's temp-extraction folder instead of a properly extracted
+        // copy), leaving `cwd` unset can make CommandBuilder inherit a
+        // directory that's about to be cleaned up by the archiver. Pin it
+        // to the exe's own directory (falling back to the OS default) so
+        // the child shell always starts somewhere stable.
+        let mut cmd = CommandBuilder::new(shell.program());
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                cmd.cwd(dir);
+            }
+        }
+
+        let mut child = match pair.slave.spawn_command(cmd) {
             Ok(c) => c,
             Err(e) => {
+                tracing::error!(
+                    target: "hyperterm::local_shell",
+                    "starting {} failed: {e:#}", shell.program()
+                );
                 let _ = evt_tx.send(ShellToHost::StartFailed(format!(
                     "starting {}: {e:#}",
                     shell.program()
@@ -106,6 +130,7 @@ pub fn spawn(
                 return;
             }
         };
+        tracing::info!(target: "hyperterm::local_shell", "child process spawned");
         // Important for ConPTY specifically: drop our handle to the
         // slave side once the child owns it. Holding it open keeps an
         // extra reference to the console alive and the master-side
@@ -115,6 +140,7 @@ pub fn spawn(
         let mut reader = match pair.master.try_clone_reader() {
             Ok(r) => r,
             Err(e) => {
+                tracing::error!(target: "hyperterm::local_shell", "opening pty reader failed: {e:#}");
                 let _ = evt_tx.send(ShellToHost::StartFailed(format!(
                     "opening pty reader: {e:#}"
                 )));
@@ -125,6 +151,7 @@ pub fn spawn(
         let mut writer = match pair.master.take_writer() {
             Ok(w) => w,
             Err(e) => {
+                tracing::error!(target: "hyperterm::local_shell", "opening pty writer failed: {e:#}");
                 let _ = evt_tx.send(ShellToHost::StartFailed(format!(
                     "opening pty writer: {e:#}"
                 )));
@@ -134,22 +161,38 @@ pub fn spawn(
         };
 
         if evt_tx.send(ShellToHost::Started).is_err() {
+            tracing::warn!(target: "hyperterm::local_shell", "GUI side gone before Started could be sent");
             let _ = child.kill();
             return;
         }
 
         let reader_evt_tx = evt_tx.clone();
         let reader_thread = std::thread::spawn(move || {
+            tracing::debug!(target: "hyperterm::local_shell", "reader thread started");
             let mut buf = [0u8; 8192];
+            let mut total: u64 = 0;
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) => break,
+                    Ok(0) => {
+                        tracing::info!(
+                            target: "hyperterm::local_shell",
+                            total_bytes = total,
+                            "reader got EOF, exiting reader thread"
+                        );
+                        break;
+                    }
                     Ok(n) => {
+                        total += n as u64;
+                        tracing::trace!(target: "hyperterm::local_shell", n, total, "read chunk from pty");
                         if reader_evt_tx.send(ShellToHost::Data(buf[..n].to_vec())).is_err() {
+                            tracing::warn!(target: "hyperterm::local_shell", "GUI side gone, stopping reader thread");
                             break;
                         }
                     }
-                    Err(_) => break,
+                    Err(e) => {
+                        tracing::error!(target: "hyperterm::local_shell", "pty read error: {e:#}, total_bytes={total}");
+                        break;
+                    }
                 }
             }
         });
@@ -188,6 +231,7 @@ pub fn spawn(
         }
 
         drop(writer);
+        tracing::info!(target: "hyperterm::local_shell", "shell session ending, sending Exited");
         let _ = evt_tx.send(ShellToHost::Exited);
         let _ = reader_thread.join();
     });
